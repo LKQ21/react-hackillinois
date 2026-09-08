@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import './App.css'; // Make sure your ocean theme CSS is linked!
+import './App.css'; 
 
 export default function App() {
   const [events, setEvents] = useState([]);
@@ -10,7 +10,7 @@ export default function App() {
   const uniqueDays = ['All', 'Friday', 'Saturday', 'Sunday'];
 
   useEffect(() => {
-    // 1. Fetch from the exact Swagger endpoint
+    // Fetch from the exact Swagger endpoint
     fetch('https://adonix.hackillinois.org/event/')
       .then((res) => {
         if (!res.ok) throw new Error(`API Error: ${res.status}`);
@@ -19,10 +19,9 @@ export default function App() {
       .then((data) => {
         console.log('Live HackIllinois Data:', data);
         
-        // 2. The API wraps events in a data.events array
+        // The API wraps events in a data.events array
         const eventList = data.events || [];
         
-        // 3. Optional: Sort events chronologically by startTime
         eventList.sort((a, b) => a.startTime - b.startTime);
         
         setEvents(eventList);
@@ -73,11 +72,40 @@ export default function App() {
     const date = new Date(unixSeconds * 1000);
     return date.toLocaleDateString([], { weekday: 'long' });
   };
-  
+
   const filteredEvents = events.filter(event => {
     if (selectedDay === 'All') return true;
     return formatDay(event.startTime) === selectedDay;
   });
+
+  // Helper: Generate a Google Calendar link
+  const generateGoogleCalendarUrl = (event) => {
+    if (!event.startTime || !event.endTime) return '#';
+
+    // Convert Unix seconds to JS Date objects
+    const startDate = new Date(event.startTime * 1000);
+    const endDate = new Date(event.endTime * 1000);
+
+    // Google Calendar requires dates in YYYYMMDDTHHmmssZ format (UTC time)
+    const formatGoogleDate = (date) => {
+      return date.toISOString().replace(/-|:|\.\d+/g, '');
+    };
+
+    const startFormatted = formatGoogleDate(startDate);
+    const endFormatted = formatGoogleDate(endDate);
+
+    const roomName = event.locations && event.locations.length > 0 
+      ? event.locations[0].description 
+      : 'Location TBA';
+
+    // Safely encode the text so it works in a URL
+    const title = encodeURIComponent(event.name);
+    const details = encodeURIComponent(event.description || '');
+    const location = encodeURIComponent(roomName);
+
+    return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${startFormatted}/${endFormatted}&details=${details}&location=${location}`;
+  };
+
 
   return (
     <div style={{
@@ -112,7 +140,7 @@ export default function App() {
           transition: 'all 0.3s ease-in-out'
         }}>
           Hack<span style={{ color: '#FF5F05' }}>Illinois</span>
-          {!isScrolled && ' 2024 Schedule'}
+          {!isScrolled && ' Schedule'}
         </h1>
         
         <p style={{ 
@@ -180,19 +208,18 @@ export default function App() {
         maxWidth: '1200px',
         margin: '0 auto'
       }}>
-        {/* IMPORTANT: Change events.map to filteredEvents.map here! */}
         {!loading && !error && filteredEvents.map((event) => {
           const roomName = event.locations && event.locations.length > 0 
             ? event.locations[0].description 
             : 'Location TBA';
             
-          // ... the rest of your card code stays exactly the same
+
           return (
             <div 
               key={event.id}
               style={{
                 backgroundColor: 'rgba(15, 43, 72, 0.4)', 
-                backdropFilter: 'blur(10px)', // I added the frosted glass back to the cards here!
+                backdropFilter: 'blur(10px)',
                 WebkitBackdropFilter: 'blur(10px)',
                 border: '1px solid rgba(56, 189, 248, 0.2)',
                 borderRadius: '12px',
@@ -244,6 +271,36 @@ export default function App() {
               }}>
                 {event.description}
               </p>
+              {/* NEW: Add to Calendar Button */}
+              <a 
+                href={generateGoogleCalendarUrl(event)}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: 'inline-block',
+                  textAlign: 'center',
+                  padding: '0.5rem 1rem',
+                  backgroundColor: 'rgba(255, 95, 5, 0.1)', // Subtle Illini Orange
+                  color: '#FF5F05',
+                  border: '1px solid #FF5F05',
+                  borderRadius: '6px',
+                  textDecoration: 'none',
+                  fontWeight: '600',
+                  fontSize: '0.85rem',
+                  transition: 'all 0.2s ease-in-out',
+                  marginTop: 'auto' 
+                }}
+                onMouseOver={(e) => {
+                  e.target.style.backgroundColor = '#FF5F05';
+                  e.target.style.color = '#ffffff';
+                }}
+                onMouseOut={(e) => {
+                  e.target.style.backgroundColor = 'rgba(255, 95, 5, 0.1)';
+                  e.target.style.color = '#FF5F05';
+                }}
+              >
+                + Google Calendar
+              </a>
             </div>
           );
         })}
